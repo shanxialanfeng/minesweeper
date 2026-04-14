@@ -1,6 +1,7 @@
 #include<iostream>
 #include<cstdlib>
 #include<ctime>
+#include<string>
 
 using namespace std;
 
@@ -52,36 +53,49 @@ void BoardInit()//初始化棋盘
     }
 }
 
-void Reveal(int x, int y) //翻开(x,y)位置的格子
+//翻开(x,y)位置的格子, isRoot = true表示这是玩家翻开的格子，false表示递归翻开的格子; Reveal返回false表示踩雷
+bool Reveal(int x, int y, bool isRoot = true) 
 {
-    if(x<0 || x>= WIDTH || y<0 ||y>= HEIGHT) return;//越界检查
+    if(x<0 || x>= WIDTH || y<0 ||y>= HEIGHT) return true;//越界检查
     Tile &tile = board[x][y];
-    if(tile.revealed || tile.flagged) return;//已经翻开或标记过的格子不处理
+    if(tile.revealed || tile.flagged) return true;//已经翻开或标记过的格子不处理
+
+    if(tile.around == -1){
+        if(isRoot) return false;
+        else return true;
+    }
+
     tile.revealed = true;
-    if(tile.around == -1) return;//地雷不继续翻开
     RevealedSafe++;
-    if(tile.around == 0)
+
+    if(tile.around == 0)//  空白格递归翻开周围的格子
     {
         for(int dy = -1; dy <= 1; dy++)
         {
             for(int dx = -1; dx <= 1; dx++)
             {
                 if(dx == 0 && dy == 0) continue;
-                Reveal(x + dx, y + dy);
+                Reveal(x + dx, y + dy, false);
             }
         }    
     }
+    return true;
 }
 
-void PutFlag(int x, int y)
+bool PutFlag(int x, int y)
 {
-    if(x<0 || x>= WIDTH || y<0 ||y>= HEIGHT) return;//越界检查
+    if(x<0 || x>= WIDTH || y<0 ||y>= HEIGHT) return false;//越界检查
     Tile &tile = board[x][y];
     if (tile.revealed) {
         cout << "已翻开的格子不能插旗！" << endl;
-        return;
+        return false;
     }
     tile.flagged = !tile.flagged;
+    if (tile.flagged)
+        cout << "已标记 (" << x << "," << y << ") 为雷区" << endl;
+    else
+        cout << "已取消标记 (" << x << "," << y << ")" << endl;
+    return true;
 }
 
 void DisplayBoard()//棋盘可视化
@@ -114,6 +128,17 @@ void DisplayBoard()//棋盘可视化
     cout << endl;
 }
 
+// 处理输入失败：清除错误标志、忽略剩余输入、输出错误信息，返回 true 表示失败
+bool handleInputFailure(const string& errorMsg = "无效输入！") {
+    if (cin.fail()) {
+        cin.clear();
+        cin.ignore(10000, '\n');
+        cout << errorMsg << endl;
+        return true;
+    }
+    return false;
+}
+
 int main()
 {
     srand(time(0));
@@ -122,72 +147,50 @@ int main()
     while(true)
     {
         DisplayBoard();
-        int mx, my;
-        cout<<"请输入坐标(x y), 或输入(-1 -1)切换标记模式：";
-        cin >> mx >> my;
-        if (cin.fail()) {
-        cin.clear();
-        cin.ignore(10000, '\n');
-        cout << "请输入数字！" << endl;
-        continue;
-        }
+        cout<<"请输入命令: (坐标 x y 翻开) 或 (f x y 插旗/取消旗子): ";
+        string command;
+        cin >> command;
+        if (handleInputFailure()) continue;
 
         // 标记模式
-        if (mx == -1 && my == -1) {
+        if (command == "f") {
             int fx, fy;
             cout << "标记模式：请输入要切换旗子的坐标(x y): ";
             cin >> fx >> fy;
-            if (cin.fail()) {
-                cin.clear();
-                cin.ignore(10000, '\n');
-                cout << "无效坐标！" << endl;
-                continue;
-            }
-            if(fx < 0 || fx >= WIDTH || fy < 0 || fy >= HEIGHT){
-            cout <<"无效坐标，请重新输入！" << endl;
-            continue;
-        }
-    
+            if (handleInputFailure("无效坐标！")) continue;
             PutFlag(fx, fy);
             continue;  // 回到循环开头，不进行翻开逻辑
         }
+        else{
+            int mx, my;
+            mx = stoi(command); // 将第一个输入的命令转换为整数坐标
+            cin >> my;
+            if (handleInputFailure("无效坐标！")) continue;
 
-        if(mx < 0 || mx >= WIDTH || my < 0 || my >= HEIGHT){
-            cout <<"无效坐标，请重新输入！" << endl;
-            continue;
-        }
+            if(mx < 0 || mx >= WIDTH || my < 0 || my >= HEIGHT){
+                cout <<"无效坐标，请重新输入！" << endl;
+                continue;
+            }
 
-        Tile& tile = board[mx][my];
+            bool isMine = !Reveal(mx, my);
+            if(isMine){
+                cout << "Game Over!" << endl;
+                for(int x = 0; x < WIDTH; x++)
+                    for(int y = 0; y < HEIGHT; y++)
+                        board[x][y].revealed = true;//翻开所有格子显示地雷位置
+                DisplayBoard();
+                break;
+            }
 
-        if(tile.revealed){
-            cout << "已经翻开了，请重新输入！" << endl;
-            continue;
-        }
-
-        if(tile.flagged){
-            cout << "这是标记的雷，请取消标记后再翻开。" << endl;
-            continue;
-        }
-
-        if(tile.around == -1){
-            cout << "Game Over!" << endl;
-            for(int x = 0; x < WIDTH; x++)
-               for(int y = 0; y < HEIGHT; y++)
-                   board[x][y].revealed = true;//翻开所有格子显示地雷位置
-            DisplayBoard();
-            break;
-        }
-
-        Reveal(mx, my);
-
-        if(RevealedSafe == TotalSafe)
-        {
-            cout << "你赢了！" << endl;
-            for(int x = 0; x < WIDTH; x++)
-               for(int y = 0; y < HEIGHT; y++)
-                   board[x][y].revealed = true;//翻开所有格子显示地雷位置
-            DisplayBoard();
-            break;
+            if(RevealedSafe == TotalSafe)
+            {
+                cout << "你赢了！" << endl;
+                for(int x = 0; x < WIDTH; x++)
+                    for(int y = 0; y < HEIGHT; y++)
+                        board[x][y].revealed = true;//翻开所有格子显示地雷位置
+                DisplayBoard();
+                break;
+            }
         }
     }
 }

@@ -1,0 +1,79 @@
+{
+    "version": "2.0.0",
+    "tasks": [
+        {
+            "type": "cppbuild",
+            "label": "C/C++: g++.exe 生成活动文件",
+            "command": "g++",
+            "args": [
+                "-std=c++17",
+                "-Wall",
+                "-Wextra",
+                "-g3",
+                "${file}",
+                "-o",
+                "${workspaceFolder}\\output\\${fileBasenameNoExtension}.exe",
+                "-I", "D:/Edge_Download/SFML-3.0.2/include",
+                "-L", "D:/Edge_Download/SFML-3.0.2/lib",
+                "-lsfml-graphics",
+                "-lsfml-window",
+                "-lsfml-system"
+            ],
+            "options": {
+                "cwd": "${fileDirname}"
+            },
+            "problemMatcher": ["$gcc"],
+            "group": {
+                "kind": "build",
+                "isDefault": true
+            },
+            "detail": "编译 SFML 3 扫雷游戏"
+        },
+        {
+            "label": "Compile: g++ 当前文件",
+            "type": "shell",
+            "command": "g++ -std=c++17 -Wall -Wextra -g3 \"${file}\" -o \"${workspaceFolder}\\output\\${fileBasenameNoExtension}.exe\" -I D:/Edge_Download/SFML-3.0.2/include -L D:/Edge_Download/SFML-3.0.2/lib -lsfml-graphics -lsfml-window -lsfml-system",
+            "options": {
+                "cwd": "${fileDirname}"
+            },
+            "presentation": {
+                "echo": true,
+                "reveal": "always",
+                "panel": "shared"
+            },
+            "problemMatcher": ["$gcc"]
+        },
+        {
+            "label": "Run: 可执行",
+            "type": "shell",
+            "command": "$exe=\"${workspaceFolder}\\output\\${fileBasenameNoExtension}.exe\"; if (Test-Path $exe) { & $exe } else { $f=Get-ChildItem \"${workspaceFolder}\\output\\*.exe\" -ErrorAction SilentlyContinue | Sort-Object LastWriteTime -Descending | Select-Object -First 1; if ($f) { & $f.FullName } else { Write-Error \"No executable found in output\\ directory.\"; exit 1 } }",
+            "presentation": {
+                "echo": true,
+                "reveal": "always",
+                "panel": "shared"
+            },
+            "problemMatcher": []
+        },
+        {
+            "label": "Build and Run",
+            "type": "shell",
+            "dependsOrder": "sequence",
+            "dependsOn": [
+                "Compile: g++ 当前文件",
+                "Run: 可执行"
+            ],
+            "problemMatcher": []
+        }
+        ,
+        {
+            "label": "Build and Run Current",
+            "type": "shell",
+            "dependsOrder": "sequence",
+            "dependsOn": [
+                "Compile: g++ 当前文件",
+                "Run: 可执行"
+            ],
+            "problemMatcher": []
+        }
+    ]
+}
