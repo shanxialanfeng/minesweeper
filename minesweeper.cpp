@@ -11,30 +11,54 @@ const int MINES = 10;
 const int TotalSafe = WIDTH * HEIGHT - MINES;
 int RevealedSafe = 0;
 
-struct Tile
+class Tile
 {
+    private:
     int around; //-1表示地雷，0-8表示周围地雷数量
     bool revealed;
     bool flagged;
+
+    public:
+    Tile() //构造函数初始化
+    {
+        around = 0;
+        revealed = false;
+        flagged = false;
+    }
+    
+    bool isRevealed() const { return revealed; }
+    bool isFlagged() const { return flagged; }
+    bool isMine() const
+    {
+        if (around == -1) return true;
+        else return false;
+    }
+    int getAround() const { return around; }
+    void reveal() { revealed = true; }
+    void toggleFlag() { flagged = !flagged; }
+    char getDisplayChar() const
+    {
+        if (!revealed) return flagged ? 'F' : '#';
+        if (isMine()) return '*';
+        if (getAround() == 0) return ' ';
+        return '0' + getAround(); // 将数字转换为字符
+    }
+    void setMine() { around = -1; }
+    void incrementAround() { around++; }
 };
 
 Tile board[WIDTH][HEIGHT];
 
 void BoardInit()//初始化棋盘
 {
-    //1、清零
-    for (int x = 0; x < WIDTH; x++)
-        for (int y = 0; y < HEIGHT; y++)
-            board[x][y] = {0, false, false}; //聚合初始化
-
-    //2、随机放置地雷，并更新周围格子的数字
+    //1、随机放置地雷，并更新周围格子的数字
     int count = 0;
     while(count < MINES){
         int x = rand() % WIDTH; // 生成 0 到 WIDTH-1 之间的随机数
         int y = rand() % HEIGHT;
-        if(board[x][y].around != -1)
+        if(!board[x][y].isMine())
         {
-            board[x][y].around = -1;
+            board[x][y].setMine();
             count++;
             for(int dx = -1; dx <= 1; dx++)
             {
@@ -44,8 +68,8 @@ void BoardInit()//初始化棋盘
                     if(dx == 0 && dy == 0) continue;
                     if(nx >= 0 && nx < WIDTH && ny >= 0 && ny < HEIGHT)
                     {
-                        if(board[nx][ny].around != -1)
-                            board[nx][ny].around++;
+                        if(!board[nx][ny].isMine())
+                            board[nx][ny].incrementAround();
                     }
                 }
             }
@@ -58,17 +82,17 @@ bool Reveal(int x, int y, bool isRoot = true)
 {
     if(x<0 || x>= WIDTH || y<0 ||y>= HEIGHT) return true;//越界检查
     Tile &tile = board[x][y];
-    if(tile.revealed || tile.flagged) return true;//已经翻开或标记过的格子不处理
+    if(tile.isRevealed() || tile.isFlagged()) return true;//已经翻开或标记过的格子不处理
 
-    if(tile.around == -1){
+    if(tile.isMine()){
         if(isRoot) return false;
         else return true;
     }
 
-    tile.revealed = true;
+    tile.reveal();
     RevealedSafe++;
 
-    if(tile.around == 0)//  空白格递归翻开周围的格子
+    if(tile.getAround() == 0)//  空白格递归翻开周围的格子
     {
         for(int dy = -1; dy <= 1; dy++)
         {
@@ -82,16 +106,16 @@ bool Reveal(int x, int y, bool isRoot = true)
     return true;
 }
 
-bool PutFlag(int x, int y)
+bool ToggleFlag(int x, int y)
 {
     if(x<0 || x>= WIDTH || y<0 ||y>= HEIGHT) return false;//越界检查
     Tile &tile = board[x][y];
-    if (tile.revealed) {
+    if (tile.isRevealed()) {
         cout << "已翻开的格子不能插旗！" << endl;
         return false;
     }
-    tile.flagged = !tile.flagged;
-    if (tile.flagged)
+    tile.toggleFlag();
+    if (tile.isFlagged())
         cout << "已标记 (" << x << "," << y << ") 为雷区" << endl;
     else
         cout << "已取消标记 (" << x << "," << y << ")" << endl;
@@ -112,16 +136,7 @@ void DisplayBoard()//棋盘可视化
         for(int x = 0; x < WIDTH; x++)
         {
             Tile &tile = board[x][y];
-            if(!tile.revealed)
-            {
-                if(tile.flagged) cout <<"F ";//标记的格子显示F
-                else cout << "# ";//未翻开的格子显示#
-            }           
-            else{
-                if(tile.around == -1) cout <<"* ";//地雷显示*
-                else if(tile.around == 0) cout <<"  ";//周围没有地雷显示空格
-                else cout << tile.around <<" ";//显示周围地雷数量
-            }
+            cout<< tile.getDisplayChar() << " ";  
         }
         cout << endl;
     }
@@ -158,7 +173,7 @@ int main()
             cout << "标记模式：请输入要切换旗子的坐标(x y): ";
             cin >> fx >> fy;
             if (handleInputFailure("无效坐标！")) continue;
-            PutFlag(fx, fy);
+            ToggleFlag(fx, fy);
             continue;  // 回到循环开头，不进行翻开逻辑
         }
         else{
@@ -172,12 +187,12 @@ int main()
                 continue;
             }
 
-            bool isMine = !Reveal(mx, my);
-            if(isMine){
+            bool hitMine = !Reveal(mx, my);
+            if(hitMine){
                 cout << "Game Over!" << endl;
                 for(int x = 0; x < WIDTH; x++)
                     for(int y = 0; y < HEIGHT; y++)
-                        board[x][y].revealed = true;//翻开所有格子显示地雷位置
+                        board[x][y].reveal();//翻开所有格子显示地雷位置
                 DisplayBoard();
                 break;
             }
@@ -187,7 +202,7 @@ int main()
                 cout << "你赢了！" << endl;
                 for(int x = 0; x < WIDTH; x++)
                     for(int y = 0; y < HEIGHT; y++)
-                        board[x][y].revealed = true;//翻开所有格子显示地雷位置
+                        board[x][y].reveal();//翻开所有格子显示地雷位置
                 DisplayBoard();
                 break;
             }
