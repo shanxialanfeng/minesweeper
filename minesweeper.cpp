@@ -2,7 +2,7 @@
 #include<cstdlib>
 #include<ctime>
 #include<string>
-
+#include<vector>
 using namespace std;
 
 const int WIDTH = 9;
@@ -26,51 +26,66 @@ class Tile
         flagged = false;
     }
     
-    bool isRevealed() const { return revealed; }
-    bool isFlagged() const { return flagged; }
-    bool isMine() const
+    bool isRevealed() const { return revealed; }//是否翻开
+    bool isFlagged() const { return flagged; }//是否标记
+    bool isMine() const //是否地雷
     {
         if (around == -1) return true;
         else return false;
     }
-    int getAround() const { return around; }
-    void reveal() { revealed = true; }
-    void toggleFlag() { flagged = !flagged; }
-    char getDisplayChar() const
+    int getAround() const { return around; }//周围地雷数量
+    void reveal() { revealed = true; }//翻开格子
+    void toggleFlag() { flagged = !flagged; }//切换标记状态
+    char getDisplayChar() const //获取显示字符
     {
         if (!revealed) return flagged ? 'F' : '#';
         if (isMine()) return '*';
         if (getAround() == 0) return ' ';
         return '0' + getAround(); // 将数字转换为字符
     }
-    void setMine() { around = -1; }
-    void incrementAround() { around++; }
+    void setMine() { around = -1; }//设置地雷
+    void incrementAround() { around++; }//周围地雷数量加1
 };
 
 Tile board[WIDTH][HEIGHT];
 
-void BoardInit()//初始化棋盘
+void PlaceMinesAvoiding(int firstX, int firstY)
 {
-    //1、随机放置地雷，并更新周围格子的数字
+    // 1. 重置棋盘（清除上一局的所有雷和数字）
+    for (int x = 0; x < WIDTH; x++)
+        for (int y = 0; y < HEIGHT; y++)
+            board[x][y] = Tile();
+
+    // 2. 随机布雷，但避开 firstX, firstY 及其周围8格
     int count = 0;
-    while(count < MINES){
-        int x = rand() % WIDTH; // 生成 0 到 WIDTH-1 之间的随机数
+    while (count < MINES) {
+        int x = rand() % WIDTH;
         int y = rand() % HEIGHT;
-        if(!board[x][y].isMine())
-        {
-            board[x][y].setMine();
-            count++;
-            for(int dx = -1; dx <= 1; dx++)
-            {
-                for(int dy = -1; dy <= 1; dy++)
-                {
-                    int nx = x + dx, ny = y + dy;
-                    if(dx == 0 && dy == 0) continue;
-                    if(nx >= 0 && nx < WIDTH && ny >= 0 && ny < HEIGHT)
-                    {
-                        if(!board[nx][ny].isMine())
-                            board[nx][ny].incrementAround();
-                    }
+
+        // 检查是否在禁止区域（第一步点击的格子及其周围8格）
+        bool isForbidden = false;
+        for (int dx = -1; dx <= 1; dx++) {
+            for (int dy = -1; dy <= 1; dy++) {
+                if (x == firstX + dx && y == firstY + dy) {
+                    isForbidden = true;
+                    break;
+                }
+            }
+            if (isForbidden) break;
+        }
+        if (isForbidden || board[x][y].isMine()) continue;
+
+        board[x][y].setMine();
+        count++;
+
+        // 更新周围8格子的 around 值
+        for (int dx = -1; dx <= 1; dx++) {
+            for (int dy = -1; dy <= 1; dy++) {
+                if (dx == 0 && dy == 0) continue;
+                int nx = x + dx, ny = y + dy;
+                if (nx >= 0 && nx < WIDTH && ny >= 0 && ny < HEIGHT) {
+                    if (!board[nx][ny].isMine())
+                        board[nx][ny].incrementAround();
                 }
             }
         }
@@ -157,16 +172,33 @@ bool handleInputFailure(const string& errorMsg = "无效输入！") {
 int main()
 {
     srand(time(0));
-    BoardInit();
-
+    bool gameStarted = false;
     while(true)
     {
         DisplayBoard();
-        cout<<"请输入命令: (坐标 x y 翻开) 或 (f x y 插旗/取消旗子): ";
+        if(!gameStarted){ 
+            cout << "欢迎来到扫雷游戏！请输入坐标x y 以开始游戏：";
+        } else { 
+            cout << "输入格式: (坐标 x y 翻开) 或 (f x y 插旗/取消旗子)：";
+        }
+
         string command;
         cin >> command;
         if (handleInputFailure()) continue;
-
+        if(!gameStarted){
+            int sx, sy;
+            sx = stoi(command);
+            cin >> sy;
+            if (handleInputFailure("无效坐标！")) continue;
+            if(sx < 0 || sx >= WIDTH || sy < 0 || sy >= HEIGHT){
+                cout <<"无效坐标，请重新输入！" << endl;
+                continue;
+            }
+            PlaceMinesAvoiding(sx ,sy); // 在玩家第一次点击的格子周围放置地雷，确保第一次点击安全
+            gameStarted = true;
+            Reveal(sx, sy); // 翻开玩家第一次点击的格子
+            continue;
+        }
         // 标记模式
         if (command == "f") {
             int fx, fy;
