@@ -9,8 +9,7 @@ const int WIDTH = 9;
 const int HEIGHT = 9;
 const int MINES = 10;
 const int TotalSafe = WIDTH * HEIGHT - MINES;
-int RevealedSafe = 0;
-int FlaggedMines = 0;
+
 
 class Tile
 {
@@ -20,12 +19,7 @@ class Tile
     bool flagged;
 
     public:
-    Tile() //构造函数初始化
-    {
-        around = 0;
-        revealed = false;
-        flagged = false;
-    }
+    Tile(): around(0), revealed(false), flagged(false) {} //默认构造函数
     
     bool isRevealed() const { return revealed; }//是否翻开
     bool isFlagged() const { return flagged; }//是否标记
@@ -48,9 +42,36 @@ class Tile
     void incrementAround() { around++; }//周围地雷数量加1
 };
 
-Tile board[WIDTH][HEIGHT];
+class Board
+{
+    private:
+    Tile board[WIDTH][HEIGHT];
+    int RevealedSafe;
+    int FlaggedMines;
+    
+    public:
+    Board(): RevealedSafe(0), FlaggedMines(0) {} //默认构造函数
+    void PlaceMinesAvoiding(int firstX, int firstY);
+    bool Reveal(int x, int y, bool isRoot = true);
+    bool ToggleFlag(int x, int y);
+    void DisplayBoard();
+    void RevealAll(){
+        for(int x = 0; x < WIDTH; x++)
+            for(int y = 0; y < HEIGHT; y++)
+                board[x][y].reveal();//翻开所有格子显示地雷位置
+    }
+    void Win(){
+        cout << "你赢了！" << endl;
+        RevealAll();
+        DisplayBoard();
+    }
+    int getRevealedSafe() const { return RevealedSafe; }
+    int getFlaggedMines() const { return FlaggedMines; }
+};
 
-void PlaceMinesAvoiding(int firstX, int firstY)
+
+
+void Board::PlaceMinesAvoiding(int firstX, int firstY)
 {
     // 1. 重置棋盘（清除上一局的所有雷和数字）
     for (int x = 0; x < WIDTH; x++)
@@ -94,7 +115,7 @@ void PlaceMinesAvoiding(int firstX, int firstY)
 }
 
 //翻开(x,y)位置的格子, isRoot = true表示这是玩家翻开的格子，false表示递归翻开的格子; Reveal返回false表示踩雷
-bool Reveal(int x, int y, bool isRoot = true) 
+bool Board::Reveal(int x, int y, bool isRoot) 
 {
     if (x < 0 || x >= WIDTH || y < 0 || y >= HEIGHT) {
         if (isRoot) cout << "坐标越界，请重新输入！" << endl;
@@ -135,7 +156,7 @@ bool Reveal(int x, int y, bool isRoot = true)
     return true;
 }
 
-bool ToggleFlag(int x, int y)
+bool Board::ToggleFlag(int x, int y)
 {
     if(x<0 || x>= WIDTH || y<0 ||y>= HEIGHT) return false;//越界检查
     Tile &tile = board[x][y];
@@ -155,7 +176,7 @@ bool ToggleFlag(int x, int y)
     return true;
 }
 
-void DisplayBoard()//棋盘可视化
+void Board::DisplayBoard()//棋盘可视化
 {
     cout << " ";
     for (int x = 0; x < WIDTH; x++) {
@@ -187,23 +208,14 @@ bool handleInputFailure(const string& errorMsg = "无效输入！") {
     return false;
 }
 
-void Win()
-{
-    cout << "你赢了！" << endl;
-    for(int x = 0; x < WIDTH; x++)
-        for(int y = 0; y < HEIGHT; y++)
-            board[x][y].reveal();//翻开所有格子显示地雷位置
-    DisplayBoard();
-    return;
-}
-
 int main()
 {
     srand(time(0));
+    Board board;
     bool gameStarted = false;
     while(true)
     {
-        DisplayBoard();
+        board.DisplayBoard();
         if(!gameStarted){ 
             cout<< "本关共有" << MINES << "个地雷。" << endl;
             cout << "欢迎来到扫雷游戏！请输入坐标x y 以开始游戏：";
@@ -223,9 +235,9 @@ int main()
                 cout <<"无效坐标，请重新输入！" << endl;
                 continue;
             }
-            PlaceMinesAvoiding(sx ,sy); // 在玩家第一次点击的格子周围放置地雷，确保第一次点击安全
+            board.PlaceMinesAvoiding(sx ,sy); // 在玩家第一次点击的格子周围放置地雷，确保第一次点击安全
             gameStarted = true;
-            Reveal(sx, sy); // 翻开玩家第一次点击的格子
+            board.Reveal(sx, sy); // 翻开玩家第一次点击的格子
             continue;
         }
         // 标记模式
@@ -234,9 +246,9 @@ int main()
             cout << "标记模式：请输入要切换旗子的坐标(x y): ";
             cin >> fx >> fy;
             if (handleInputFailure("无效坐标！")) continue;
-            ToggleFlag(fx, fy);
-            if(FlaggedMines == MINES) {
-                Win();
+            board.ToggleFlag(fx, fy);
+            if(board.getFlaggedMines() == MINES) {
+                board.Win();
                 break;
             }
             continue;  // 回到循环开头，不进行翻开逻辑
@@ -247,18 +259,15 @@ int main()
             cin >> my;
             if (handleInputFailure("无效坐标！")) continue;
 
-            if(!Reveal(mx ,my)){
+            if(!board.Reveal(mx ,my)){
                 cout << "Game Over!" << endl;
-                for(int x = 0; x < WIDTH; x++)
-                    for(int y = 0; y < HEIGHT; y++)
-                        board[x][y].reveal();//翻开所有格子显示地雷位置
-                DisplayBoard();
+                board.RevealAll();
+                board.DisplayBoard();
                 break;
             }
-
-            if(RevealedSafe == TotalSafe)
-            {
-                Win();
+            
+            if(board.getRevealedSafe() == TotalSafe){
+                board.Win();
                 break;
             }
         }
