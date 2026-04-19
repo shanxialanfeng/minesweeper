@@ -10,6 +10,7 @@ const int HEIGHT = 9;
 const int MINES = 10;
 const int TotalSafe = WIDTH * HEIGHT - MINES;
 int RevealedSafe = 0;
+int FlaggedMines = 0;
 
 class Tile
 {
@@ -95,9 +96,22 @@ void PlaceMinesAvoiding(int firstX, int firstY)
 //翻开(x,y)位置的格子, isRoot = true表示这是玩家翻开的格子，false表示递归翻开的格子; Reveal返回false表示踩雷
 bool Reveal(int x, int y, bool isRoot = true) 
 {
-    if(x<0 || x>= WIDTH || y<0 ||y>= HEIGHT) return true;//越界检查
+    if (x < 0 || x >= WIDTH || y < 0 || y >= HEIGHT) {
+        if (isRoot) cout << "坐标越界，请重新输入！" << endl;
+        return true;  // 越界不视为踩雷
+    }
+
     Tile &tile = board[x][y];
-    if(tile.isRevealed() || tile.isFlagged()) return true;//已经翻开或标记过的格子不处理
+
+    if (tile.isRevealed()) {
+        if (isRoot) cout << "该格子已经翻开了！" << endl;
+        return true;
+    }
+
+    if (tile.isFlagged()) {
+        if (isRoot) cout << "该格子已被标记为雷，请先取消标记！" << endl;
+        return true;
+    }
 
     if(tile.isMine()){
         if(isRoot) return false;
@@ -130,10 +144,14 @@ bool ToggleFlag(int x, int y)
         return false;
     }
     tile.toggleFlag();
-    if (tile.isFlagged())
+    if (tile.isFlagged()){
+        if(tile.isMine()) FlaggedMines++;
         cout << "已标记 (" << x << "," << y << ") 为雷区" << endl;
-    else
+    }else{
+        if(tile.isMine()) FlaggedMines--;
         cout << "已取消标记 (" << x << "," << y << ")" << endl;
+    }
+    cout<< "当前已标记的雷数: " << FlaggedMines << "/" << MINES << endl;
     return true;
 }
 
@@ -169,6 +187,16 @@ bool handleInputFailure(const string& errorMsg = "无效输入！") {
     return false;
 }
 
+void Win()
+{
+    cout << "你赢了！" << endl;
+    for(int x = 0; x < WIDTH; x++)
+        for(int y = 0; y < HEIGHT; y++)
+            board[x][y].reveal();//翻开所有格子显示地雷位置
+    DisplayBoard();
+    return;
+}
+
 int main()
 {
     srand(time(0));
@@ -177,6 +205,7 @@ int main()
     {
         DisplayBoard();
         if(!gameStarted){ 
+            cout<< "本关共有" << MINES << "个地雷。" << endl;
             cout << "欢迎来到扫雷游戏！请输入坐标x y 以开始游戏：";
         } else { 
             cout << "输入格式: (坐标 x y 翻开) 或 (f x y 插旗/取消旗子)：";
@@ -206,6 +235,10 @@ int main()
             cin >> fx >> fy;
             if (handleInputFailure("无效坐标！")) continue;
             ToggleFlag(fx, fy);
+            if(FlaggedMines == MINES) {
+                Win();
+                break;
+            }
             continue;  // 回到循环开头，不进行翻开逻辑
         }
         else{
@@ -214,13 +247,7 @@ int main()
             cin >> my;
             if (handleInputFailure("无效坐标！")) continue;
 
-            if(mx < 0 || mx >= WIDTH || my < 0 || my >= HEIGHT){
-                cout <<"无效坐标，请重新输入！" << endl;
-                continue;
-            }
-
-            bool hitMine = !Reveal(mx, my);
-            if(hitMine){
+            if(!Reveal(mx ,my)){
                 cout << "Game Over!" << endl;
                 for(int x = 0; x < WIDTH; x++)
                     for(int y = 0; y < HEIGHT; y++)
@@ -231,11 +258,7 @@ int main()
 
             if(RevealedSafe == TotalSafe)
             {
-                cout << "你赢了！" << endl;
-                for(int x = 0; x < WIDTH; x++)
-                    for(int y = 0; y < HEIGHT; y++)
-                        board[x][y].reveal();//翻开所有格子显示地雷位置
-                DisplayBoard();
+                Win();
                 break;
             }
         }
