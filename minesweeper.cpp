@@ -5,12 +5,6 @@
 #include<vector>
 using namespace std;
 
-const int WIDTH = 9;
-const int HEIGHT = 9;
-const int MINES = 10;
-const int TotalSafe = WIDTH * HEIGHT - MINES;
-
-
 class Tile
 {
     private:
@@ -45,19 +39,23 @@ class Tile
 class Board
 {
     private:
-    Tile board[WIDTH][HEIGHT];
+    int height, width, mines;
+    int TotalSafe;
+    vector<vector<Tile>> board;
     int RevealedSafe;
     int FlaggedMines;
     
     public:
-    Board(): RevealedSafe(0), FlaggedMines(0) {} //默认构造函数
+    Board(int h, int w, int m): height(h), width(w), mines(m), TotalSafe(h * w - m), RevealedSafe(0), FlaggedMines(0) {
+        board.resize(width, vector<Tile>(height)); // 初始化棋盘
+    }
     void PlaceMinesAvoiding(int firstX, int firstY);
     bool Reveal(int x, int y, bool isRoot = true);
     bool ToggleFlag(int x, int y);
     void DisplayBoard();
     void RevealAll(){
-        for(int x = 0; x < WIDTH; x++)
-            for(int y = 0; y < HEIGHT; y++)
+        for(int x = 0; x < width; x++)
+            for(int y = 0; y < height; y++)
                 board[x][y].reveal();//翻开所有格子显示地雷位置
     }
     void Win(){
@@ -67,22 +65,24 @@ class Board
     }
     int getRevealedSafe() const { return RevealedSafe; }
     int getFlaggedMines() const { return FlaggedMines; }
+    int getHeight() const { return height; }
+    int getWidth() const { return width; }
+    int getMines() const { return mines; }
+    int getTotalSafe() const { return TotalSafe; }
 };
-
-
 
 void Board::PlaceMinesAvoiding(int firstX, int firstY)
 {
     // 1. 重置棋盘（清除上一局的所有雷和数字）
-    for (int x = 0; x < WIDTH; x++)
-        for (int y = 0; y < HEIGHT; y++)
+    for (int x = 0; x < width; x++)
+        for (int y = 0; y < height; y++)
             board[x][y] = Tile();
 
     // 2. 随机布雷，但避开 firstX, firstY 及其周围8格
     int count = 0;
-    while (count < MINES) {
-        int x = rand() % WIDTH;
-        int y = rand() % HEIGHT;
+    while (count < mines) {
+        int x = rand() % width;
+        int y = rand() % height;
 
         // 检查是否在禁止区域（第一步点击的格子及其周围8格）
         bool isForbidden = false;
@@ -105,7 +105,7 @@ void Board::PlaceMinesAvoiding(int firstX, int firstY)
             for (int dy = -1; dy <= 1; dy++) {
                 if (dx == 0 && dy == 0) continue;
                 int nx = x + dx, ny = y + dy;
-                if (nx >= 0 && nx < WIDTH && ny >= 0 && ny < HEIGHT) {
+                if (nx >= 0 && nx < width && ny >= 0 && ny < height) {
                     if (!board[nx][ny].isMine())
                         board[nx][ny].incrementAround();
                 }
@@ -117,7 +117,7 @@ void Board::PlaceMinesAvoiding(int firstX, int firstY)
 //翻开(x,y)位置的格子, isRoot = true表示这是玩家翻开的格子，false表示递归翻开的格子; Reveal返回false表示踩雷
 bool Board::Reveal(int x, int y, bool isRoot) 
 {
-    if (x < 0 || x >= WIDTH || y < 0 || y >= HEIGHT) {
+    if (x < 0 || x >= width || y < 0 || y >= height) {
         if (isRoot) cout << "坐标越界，请重新输入！" << endl;
         return true;  // 越界不视为踩雷
     }
@@ -158,7 +158,7 @@ bool Board::Reveal(int x, int y, bool isRoot)
 
 bool Board::ToggleFlag(int x, int y)
 {
-    if(x<0 || x>= WIDTH || y<0 ||y>= HEIGHT) return false;//越界检查
+    if(x<0 || x>= width || y<0 ||y>= height) return false;//越界检查
     Tile &tile = board[x][y];
     if (tile.isRevealed()) {
         cout << "已翻开的格子不能插旗！" << endl;
@@ -172,22 +172,22 @@ bool Board::ToggleFlag(int x, int y)
         if(tile.isMine()) FlaggedMines--;
         cout << "已取消标记 (" << x << "," << y << ")" << endl;
     }
-    cout<< "当前已标记的雷数: " << FlaggedMines << "/" << MINES << endl;
+    cout<< "当前已标记的雷数: " << FlaggedMines << "/" << mines << endl;
     return true;
 }
 
 void Board::DisplayBoard()//棋盘可视化
 {
     cout << " ";
-    for (int x = 0; x < WIDTH; x++) {
+    for (int x = 0; x < width; x++) {
         cout << " " << x;
     }
     cout << endl;
 
-    for(int y = 0; y < HEIGHT; y++)
+    for(int y = 0; y < height; y++)
     {
         cout << y <<" ";
-        for(int x = 0; x < WIDTH; x++)
+        for(int x = 0; x < width; x++)
         {
             Tile &tile = board[x][y];
             cout<< tile.getDisplayChar() << " ";  
@@ -211,13 +211,17 @@ bool handleInputFailure(const string& errorMsg = "无效输入！") {
 int main()
 {
     srand(time(0));
-    Board board;
+    int h, w, m;
+    cout << "请输入棋盘的高度、宽度和地雷数量 (h w m): " << endl;
+    cout << "请注意：地雷数量必须小于 (高度 * 宽度 - 9)，以确保第一步点击的安全。" << endl;
+    cin >> h >> w >> m;
+    Board board(h, w, m);
     bool gameStarted = false;
     while(true)
     {
         board.DisplayBoard();
         if(!gameStarted){ 
-            cout<< "本关共有" << MINES << "个地雷。" << endl;
+            cout<< "本关共有" << board.getMines() << "个地雷。" << endl;
             cout << "欢迎来到扫雷游戏！请输入坐标x y 以开始游戏：";
         } else { 
             cout << "输入格式: (坐标 x y 翻开) 或 (f x y 插旗/取消旗子)：";
@@ -231,7 +235,7 @@ int main()
             sx = stoi(command);
             cin >> sy;
             if (handleInputFailure("无效坐标！")) continue;
-            if(sx < 0 || sx >= WIDTH || sy < 0 || sy >= HEIGHT){
+            if(sx < 0 || sx >= board.getWidth() || sy < 0 || sy >= board.getHeight()){
                 cout <<"无效坐标，请重新输入！" << endl;
                 continue;
             }
@@ -247,7 +251,7 @@ int main()
             cin >> fx >> fy;
             if (handleInputFailure("无效坐标！")) continue;
             board.ToggleFlag(fx, fy);
-            if(board.getFlaggedMines() == MINES) {
+            if(board.getFlaggedMines() == board.getMines()) {
                 board.Win();
                 break;
             }
@@ -266,7 +270,7 @@ int main()
                 break;
             }
             
-            if(board.getRevealedSafe() == TotalSafe){
+            if(board.getRevealedSafe() == board.getTotalSafe()){
                 board.Win();
                 break;
             }
